@@ -51,6 +51,7 @@ var testCmd = &cobra.Command{
 		  type LangConfig struct {
 			  DefaultLanguage string            `json:"default_language"`
 			  Languages       map[string]string `json:"languages"`
+			  Executables     map[string]string `json:"executables"`
 		  }
 		  var cfg LangConfig
 		  if f, err := os.Open(configPath); err == nil {
@@ -96,39 +97,48 @@ var testCmd = &cobra.Command{
 		   var execArgs []string
 		   var binName string
 		   var binPath string
-		   switch lang {
-		   case "cpp", "c++":
-			   binName = problemID + ".exe"
-			   binPath = probDir + string(os.PathSeparator) + binName
-			   execCmd = "g++"
-			   execArgs = []string{"-O2", "-std=c++17", sourceFile, "-o", binPath}
-		   case "c":
-			   binName = problemID + ".exe"
-			   binPath = probDir + string(os.PathSeparator) + binName
-			   execCmd = "gcc"
-			   execArgs = []string{"-O2", sourceFile, "-o", binPath}
-		   case "rust":
-			   binName = problemID + ".exe"
-			   binPath = probDir + string(os.PathSeparator) + binName
-			   execCmd = "rustc"
-			   execArgs = []string{sourceFile, "-o", binPath}
-		   case "go":
-			   binName = problemID + ".exe"
-			   binPath = probDir + string(os.PathSeparator) + binName
-			   execCmd = "go"
-			   execArgs = []string{"build", "-o", binPath, sourceFile}
-		   case "java":
-			   binName = problemID + ".class"
-			   binPath = probDir + string(os.PathSeparator) + binName
-			   execCmd = "javac"
-			   execArgs = []string{sourceFile}
-		   case "python", "py":
-			   binName = ""
-			   binPath = ""
-		   default:
-			   fmt.Println("Language not supported for testing.")
-			   return
-		   }
+		  // Select executable from config or use default
+		  defaultExecs := map[string]string{
+			  "cpp": "g++",
+			  "c": "gcc",
+			  "go": "go",
+			  "python": "python",
+			  "py": "python",
+		  }
+		  getExec := func(lang string) string {
+			  if cfg.Executables != nil {
+				  if exe, ok := cfg.Executables[lang]; ok && exe != "" {
+					  return exe
+				  }
+			  }
+			  if exe, ok := defaultExecs[lang]; ok {
+				  return exe
+			  }
+			  return ""
+		  }
+		  switch lang {
+		  case "cpp", "c++":
+			  binName = problemID + ".exe"
+			  binPath = probDir + string(os.PathSeparator) + binName
+			  execCmd = getExec("cpp")
+			  execArgs = []string{"-O2", "-std=c++17", sourceFile, "-o", binPath}
+		  case "c":
+			  binName = problemID + ".exe"
+			  binPath = probDir + string(os.PathSeparator) + binName
+			  execCmd = getExec("c")
+			  execArgs = []string{"-O2", sourceFile, "-o", binPath}
+		  case "go":
+			  binName = problemID + ".exe"
+			  binPath = probDir + string(os.PathSeparator) + binName
+			  execCmd = getExec("go")
+			  execArgs = []string{"build", "-o", binPath, sourceFile}
+		  case "python", "py":
+			  binName = ""
+			  binPath = ""
+		  default:
+			  fmt.Println("Language not supported for testing.")
+			  return
+		  }
 		   if lang != "python" && lang != "py" {
 			   fmt.Printf("Compiling %s...\n", sourceFile)
 			   out, err := runAndCapture(execCmd, execArgs...)
@@ -139,18 +149,15 @@ var testCmd = &cobra.Command{
 			   fmt.Println("Compilation successful.")
 		   }
 		   // Prepare run command
-		   var runCmd string
-		   var runArgs []string
-		   if lang == "python" || lang == "py" {
-			   runCmd = "python"
-			   runArgs = []string{sourceFile}
-		   } else if lang == "java" {
-			   runCmd = "java"
-			   runArgs = []string{"-cp", ".", strings.TrimSuffix(sourceFile, ".java")}
-		   } else {
-			   runCmd = "." + string(os.PathSeparator) + binName
-			   runArgs = []string{}
-		   }
+		  var runCmd string
+		  var runArgs []string
+		  if lang == "python" || lang == "py" {
+			  runCmd = getExec(lang)
+			  runArgs = []string{sourceFile}
+		  } else {
+			  runCmd = "." + string(os.PathSeparator) + binName
+			  runArgs = []string{}
+		  }
 
 		   if customTest {
 			   // Use in.txt as input, write output to out.txt in the problem directory

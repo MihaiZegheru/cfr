@@ -160,49 +160,48 @@ var loadCmd = &cobra.Command{
 
 		// Only create files/folders if this is the first load (not a reload)
 		if prevState.ContestID == "" {
-			configPath := ".cfr/config.json"
-			lang := ""
-			ext := ""
-			if f, err := os.Open(configPath); err == nil {
-				defer f.Close()
-				var cfg struct{ Language string `json:"language"` }
-				dec := json.NewDecoder(f)
-				if err := dec.Decode(&cfg); err == nil {
-					lang = strings.ToLower(cfg.Language)
-				}
-			}
-			ext = map[string]string{
-				"c": ".c",
-				"cpp": ".cpp",
-				"c++": ".cpp",
-				"rust": ".rs",
-				"python": ".py",
-				"py": ".py",
-				"go": ".go",
-				"java": ".java",
-			}[lang]
-			for pid, prob := range problems {
-				dirName := fmt.Sprintf("%s. %s", pid, prob.Name)
-				os.MkdirAll(dirName, 0755)
-				inPath := dirName + string(os.PathSeparator) + "in.txt"
-				outPath := dirName + string(os.PathSeparator) + "out.txt"
-				os.WriteFile(inPath, []byte{}, 0644)
-				os.WriteFile(outPath, []byte{}, 0644)
-				if ext != "" {
-					srcPath := dirName + string(os.PathSeparator) + "main" + ext
-					if _, err := os.Stat(srcPath); os.IsNotExist(err) {
-						f, err := os.Create(srcPath)
-						if err == nil {
-							f.Close()
-						}
-					}
-				}
-			}
-			if ext == "" {
-				fmt.Println("No valid language set in .cfr/config.json. Skipping file creation.")
-			} else {
-				fmt.Printf("Created source and IO files for problems.\n")
-			}
+			   configPath := ".cfr/config.json"
+			   lang := "cpp"
+			   ext := ".cpp"
+			   if f, err := os.Open(configPath); err == nil {
+				   defer f.Close()
+				   var cfg struct {
+					   DefaultLanguage string `json:"default_language"`
+				   }
+				   dec := json.NewDecoder(f)
+				   if err := dec.Decode(&cfg); err == nil {
+					   if cfg.DefaultLanguage != "" {
+						   lang = strings.ToLower(cfg.DefaultLanguage)
+					   }
+				   }
+			   }
+			   extMap := map[string]string{
+				   "c": ".c",
+				   "cpp": ".cpp",
+				   "c++": ".cpp",
+				   "python": ".py",
+				   "py": ".py",
+				   "go": ".go",
+			   }
+			   if e, ok := extMap[lang]; ok {
+				   ext = e
+			   }
+			   for pid, prob := range problems {
+				   dirName := fmt.Sprintf("%s. %s", pid, prob.Name)
+				   os.MkdirAll(dirName, 0755)
+				   inPath := dirName + string(os.PathSeparator) + "in.txt"
+				   outPath := dirName + string(os.PathSeparator) + "out.txt"
+				   os.WriteFile(inPath, []byte{}, 0644)
+				   os.WriteFile(outPath, []byte{}, 0644)
+				   srcPath := dirName + string(os.PathSeparator) + "main" + ext
+				   if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+					   f, err := os.Create(srcPath)
+					   if err == nil {
+						   f.Close()
+					   }
+				   }
+			   }
+			   fmt.Printf("Created source and IO files for problems.\n")
 		} else {
 			fmt.Println("Only sample tests were updated. No files or folders were changed.")
 		}

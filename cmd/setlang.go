@@ -36,6 +36,7 @@ var setLangCmd = &cobra.Command{
 		type LangConfig struct {
 			DefaultLanguage string            `json:"default_language"`
 			Languages       map[string]string `json:"languages"`
+			Executables     map[string]string `json:"executables"`
 		}
 		var cfg LangConfig
 		cfg.Languages = map[string]string{}

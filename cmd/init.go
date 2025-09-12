@@ -22,16 +22,26 @@ var initCmd = &cobra.Command{
 		}
 		   // Create default config.json if not exists
 		   configPath := cfrDir + string(os.PathSeparator) + "config.json"
-		   if _, err := os.Stat(configPath); os.IsNotExist(err) {
-			   f, err := os.Create(configPath)
-			   if err != nil {
-				   fmt.Printf("Failed to create %s: %v\n", configPath, err)
-			   } else {
-				   f.WriteString("{\n  \"default_language\": \"cpp\",\n  \"languages\": {}\n}\n")
-				   f.Close()
-				   fmt.Printf("Created default config at %s\n", configPath)
-			   }
-		   }
+		if _, err := os.Stat(configPath); os.IsNotExist(err) {
+			f, err := os.Create(configPath)
+			if err != nil {
+				fmt.Printf("Failed to create %s: %v\n", configPath, err)
+			} else {
+				f.WriteString(`{
+  "default_language": "cpp",
+  "languages": {},
+  "executables": {
+	"cpp": "g++",
+	"c": "gcc",
+	"go": "go",
+	"python": "python"
+  }
+}
+`)
+				f.Close()
+				fmt.Printf("Created default config at %s\n", configPath)
+			}
+		}
 		fmt.Println("Initialized CFR state in .cfr directory.")
 	},
 }
