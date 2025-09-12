@@ -16,6 +16,7 @@ CFR is a fast, user-friendly CLI tool for competitive programmers who use Codefo
 
 ## Quick Start
 
+
 ### 1. Install
 Build the binary:
 ```sh
@@ -28,7 +29,17 @@ Run this in your contest folder:
 cfr init
 ```
 
-### 3. Set Your Language(s)
+### 3. Load a Contest
+```sh
+cfr load <CONTEST_ID>
+```
+This will create a folder for each problem, e.g. `A. Sum of Round Numbers/`, with:
+- `main.cpp` (or `main.<ext>`)
+- `in.txt` (for custom input)
+- `out.txt` (for custom output)
+- All sample tests stored in `.cfr/problems.json`
+
+### 4. Set Your Language(s)
 
 Edit `.cfr/config.json` to set the default language, per-problem languages, and the compiler/interpreter for each language:
 ```json
@@ -59,16 +70,6 @@ Example:
 ```sh
 cfr set-lang B python
 ```
-
-### 4. Load a Contest
-```sh
-cfr load <CONTEST_ID>
-```
-This will create a folder for each problem, e.g. `A. Sum of Round Numbers/`, with:
-- `main.cpp` (or `main.<ext>`)
-- `in.txt` (for custom input)
-- `out.txt` (for custom output)
-- All sample tests stored in `.cfr/problems.json`
 
 ### 5. Solve & Test
 Write your solution in `main.cpp` (or the appropriate file).
