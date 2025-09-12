@@ -14,6 +14,11 @@ var customTest bool
 var testCmd = &cobra.Command{
 	Use:   "test <problem_ID>",
 	Short: "Test a problem by ID",
+	Long: `Test a problem by ID.
+
+By default, runs all sample tests for the problem.
+
+Use -c to run a custom test: input is read from <problem_ID>_in.txt and output is written to <problem_ID>_out.txt.`,
 	Args:  cobra.ExactArgs(1),
 	   Run: func(cmd *cobra.Command, args []string) {
 		   state, err := internal.LoadProblemsState()
