@@ -12,15 +12,28 @@ import (
 var customTest bool
 
 var testCmd = &cobra.Command{
-	Use:   "test <problem_ID>",
-	Short: "Test a problem by ID",
-	Long: `Test a problem by ID.
+	 Use:   "test <problem_ID>",
+	 Short: "Test a problem by ID",
+			 Long: `Test a problem by ID.
 
-By default, runs all sample tests for the problem.
+		By default, runs all sample tests for the problem.
 
-Use -c to run a custom test: input is read from <problem_ID>_in.txt and output is written to <problem_ID>_out.txt.`,
-	Args:  cobra.ExactArgs(1),
-	   Run: func(cmd *cobra.Command, args []string) {
+		Use -c to run a custom test: input is read from in.txt and output is written to out.txt in the problem directory.
+
+		Language selection:
+			- The language for each problem can be set in .cfr/config.json:
+				{
+					"default_language": "cpp",
+					"languages": {
+						"A": "cpp",
+						"B": "python"
+					}
+				}
+			- Supported languages: cpp, c, rust, go, python, java
+			- If a problem is not listed in 'languages', 'default_language' is used.
+		`,
+	 Args:  cobra.ExactArgs(1),
+			Run: func(cmd *cobra.Command, args []string) {
 		   state, err := internal.LoadProblemsState()
 		   if err != nil || state.ContestID == "" {
 			   fmt.Println("No contest ID loaded. Please run 'cfr load <ID>' first.")
@@ -32,31 +45,39 @@ Use -c to run a custom test: input is read from <problem_ID>_in.txt and output i
 			   fmt.Printf("Problem %s not found in state. Please run 'cfr load <ID>' again.\n", problemID)
 			   return
 		   }
-		   // Detect language from config
-		   lang := "cpp"
-		   configPath := ".cfr/config.json"
-		   if f, err := os.Open(configPath); err == nil {
-			   defer f.Close()
-			   var cfg struct{ Language string `json:"language"` }
-			   dec := json.NewDecoder(f)
-			   if err := dec.Decode(&cfg); err == nil {
-				   lang = strings.ToLower(cfg.Language)
-			   }
-		   }
-		   ext := map[string]string{
-			   "c": ".c",
-			   "cpp": ".cpp",
-			   "c++": ".cpp",
-			   "rust": ".rs",
-			   "python": ".py",
-			   "py": ".py",
-			   "go": ".go",
-			   "java": ".java",
-		   }[lang]
-		   if ext == "" {
-			   fmt.Println("No valid language set in .cfr/config.json. Cannot test.")
-			   return
-		   }
+		  // Detect language from config
+		  lang := "cpp"
+		  configPath := ".cfr/config.json"
+		  type LangConfig struct {
+			  DefaultLanguage string            `json:"default_language"`
+			  Languages       map[string]string `json:"languages"`
+		  }
+		  var cfg LangConfig
+		  if f, err := os.Open(configPath); err == nil {
+			  defer f.Close()
+			  dec := json.NewDecoder(f)
+			  if err := dec.Decode(&cfg); err == nil {
+				  if l, ok := cfg.Languages[problemID]; ok {
+					  lang = strings.ToLower(l)
+				  } else if cfg.DefaultLanguage != "" {
+					  lang = strings.ToLower(cfg.DefaultLanguage)
+				  }
+			  }
+		  }
+		  ext := map[string]string{
+			  "c": ".c",
+			  "cpp": ".cpp",
+			  "c++": ".cpp",
+			  "rust": ".rs",
+			  "python": ".py",
+			  "py": ".py",
+			  "go": ".go",
+			  "java": ".java",
+		  }[lang]
+		  if ext == "" {
+			  fmt.Println("No valid language set in .cfr/config.json. Cannot test.")
+			  return
+		  }
 		   // Find the problem directory (should match the format <problemID>. <name>)
 		   probDir := ""
 		   for id, entry := range state.Problems {

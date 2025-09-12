@@ -5,10 +5,12 @@ CFR is a fast, user-friendly CLI tool for competitive programmers who use Codefo
 ## Features
 - **Contest Loader:** Download all problems and sample tests for a contest in one command.
 - **Organized Workspace:** Each problem gets its own folder with generic file names (`main.cpp`, `in.txt`, `out.txt`).
-- **Language Support:** Works with C++, C, Rust, Go, Python, and Java (configurable).
+- **Language Support:** Works with C++, C, Rust, Go, Python, and Java (configurable per problem).
+- **Per-Problem Language:** Set a different language for each problem in `.cfr/config.json` or with a CLI command.
 - **Sample & Custom Testing:** Run all sample tests or your own custom test cases.
 - **Persistent State:** Keeps track of loaded contests and problems in `.cfr/problems.json`.
 - **Safe & Idempotent:** Prevents duplicate `init` or `load` commands.
+- **Automatic Source Versioning:** When switching languages, your previous source file is saved in a `versions/` folder and restored if you switch back.
 
 ---
 
@@ -26,14 +28,28 @@ Run this in your contest folder:
 cfr init
 ```
 
-### 3. Set Your Language
-Edit `.cfr/config.json` and set your language, e.g.:
+### 3. Set Your Language(s)
+Edit `.cfr/config.json` to set the default language and/or per-problem languages:
 ```json
 {
-  "language": "cpp"
+  "default_language": "cpp",
+  "languages": {
+    "A": "cpp",
+    "B": "python",
+    "C": "java"
+  }
 }
 ```
 Supported: `cpp`, `c`, `rust`, `go`, `python`, `java`
+
+Or use the CLI to set a language for a problem and create the right file:
+```sh
+cfr set-lang <PROBLEM_ID> <language>
+```
+Example:
+```sh
+cfr set-lang B python
+```
 
 ### 4. Load a Contest
 ```sh
@@ -75,11 +91,16 @@ YourContestFolder/
 ├── A. Sum of Round Numbers/
 │   ├── main.cpp
 │   ├── in.txt
-│   └── out.txt
+│   ├── out.txt
+│   └── versions/
+│       ├── main.py
+│       └── main.java
 ├── B. .../
-│   ├── main.cpp
+│   ├── main.py
 │   ├── in.txt
-│   └── out.txt
+│   ├── out.txt
+│   └── versions/
+│       └── main.cpp
 ...
 ```
 
@@ -90,6 +111,8 @@ YourContestFolder/
 - Only one contest can be loaded at a time per workspace.
 - All state is stored in `.cfr/problems.json`.
 - For C++/C/Rust/Go, the binary is built and run in the problem directory.
+- Use `cfr set-lang <PROBLEM_ID> <language>` to switch languages and manage source files safely.
+- When switching languages, your previous file is saved in `versions/` and restored if you switch back.
 
 ---
 
