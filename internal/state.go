@@ -25,6 +25,7 @@ type TestCase struct {
 
 type ProblemEntry struct {
 	URL   string     `json:"url"`
+	Name  string     `json:"name"`
 	Tests []TestCase `json:"tests"`
 }
 
