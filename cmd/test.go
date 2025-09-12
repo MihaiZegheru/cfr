@@ -69,7 +69,7 @@ Use -c to run a custom test: input is read from <problem_ID>_in.txt and output i
 			   fmt.Printf("Directory for problem %s not found.\n", problemID)
 			   return
 		   }
-		   sourceFile := probDir + string(os.PathSeparator) + problemID + ext
+		   sourceFile := probDir + string(os.PathSeparator) + "main" + ext
 		   // Compile the solution
 		   var execCmd string
 		   var execArgs []string
@@ -132,9 +132,9 @@ Use -c to run a custom test: input is read from <problem_ID>_in.txt and output i
 		   }
 
 		   if customTest {
-			   // Use <problem_id>_in.txt as input, write output to <problem_id>_out.txt in the problem directory
-			   inPath := probDir + string(os.PathSeparator) + problemID + "_in.txt"
-			   outPath := probDir + string(os.PathSeparator) + problemID + "_out.txt"
+			   // Use in.txt as input, write output to out.txt in the problem directory
+			   inPath := probDir + string(os.PathSeparator) + "in.txt"
+			   outPath := probDir + string(os.PathSeparator) + "out.txt"
 			   if _, err := os.Stat(inPath); os.IsNotExist(err) {
 				   fmt.Printf("%s not found. Please run 'cfr load <ID>' first.\n", inPath)
 				   return

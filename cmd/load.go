@@ -152,17 +152,9 @@ var loadCmd = &cobra.Command{
 		fmt.Printf("Loaded %d problems for contest %s.\n", len(problems), id)
 
 		// Write empty in.txt and out.txt for each problem, and create directory per problem
-		for pid, prob := range problems {
-			dirName := fmt.Sprintf("%s. %s", pid, prob.Name)
-			os.MkdirAll(dirName, 0755)
-			inPath := dirName + string(os.PathSeparator) + pid + "_in.txt"
-			outPath := dirName + string(os.PathSeparator) + pid + "_out.txt"
-			os.WriteFile(inPath, []byte{}, 0644)
-			os.WriteFile(outPath, []byte{}, 0644)
-		}
-		// Read config for language
 		configPath := ".cfr/config.json"
 		lang := ""
+		ext := ""
 		if f, err := os.Open(configPath); err == nil {
 			defer f.Close()
 			var cfg struct{ Language string `json:"language"` }
@@ -171,7 +163,7 @@ var loadCmd = &cobra.Command{
 				lang = strings.ToLower(cfg.Language)
 			}
 		}
-		ext := map[string]string{
+		ext = map[string]string{
 			"c": ".c",
 			"cpp": ".cpp",
 			"c++": ".cpp",
@@ -181,24 +173,27 @@ var loadCmd = &cobra.Command{
 			"go": ".go",
 			"java": ".java",
 		}[lang]
-		if ext == "" {
-			fmt.Println("No valid language set in .cfr/config.json. Skipping file creation.")
-		} else {
-			created := 0
-			for id, prob := range problems {
-				dirName := fmt.Sprintf("%s. %s", id, prob.Name)
-				fname := dirName + string(os.PathSeparator) + id + ext
-				if _, err := os.Stat(fname); os.IsNotExist(err) {
-					f, err := os.Create(fname)
+		for pid, prob := range problems {
+			dirName := fmt.Sprintf("%s. %s", pid, prob.Name)
+			os.MkdirAll(dirName, 0755)
+			inPath := dirName + string(os.PathSeparator) + "in.txt"
+			outPath := dirName + string(os.PathSeparator) + "out.txt"
+			os.WriteFile(inPath, []byte{}, 0644)
+			os.WriteFile(outPath, []byte{}, 0644)
+			if ext != "" {
+				srcPath := dirName + string(os.PathSeparator) + "main" + ext
+				if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+					f, err := os.Create(srcPath)
 					if err == nil {
 						f.Close()
-						created++
 					}
 				}
 			}
-			if created > 0 {
-				fmt.Printf("Created %d source file(s) for problems.\n", created)
-			}
+		}
+		if ext == "" {
+			fmt.Println("No valid language set in .cfr/config.json. Skipping file creation.")
+		} else {
+			fmt.Printf("Created source and IO files for problems.\n")
 		}
 		fmt.Println("Done.")
 	},
