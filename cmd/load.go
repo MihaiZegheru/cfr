@@ -151,10 +151,12 @@ var loadCmd = &cobra.Command{
 		}
 		fmt.Printf("Loaded %d problems for contest %s.\n", len(problems), id)
 
-		// Write empty in.txt and out.txt for each problem
-		for pid := range problems {
-			inPath := pid + "_in.txt"
-			outPath := pid + "_out.txt"
+		// Write empty in.txt and out.txt for each problem, and create directory per problem
+		for pid, prob := range problems {
+			dirName := fmt.Sprintf("%s. %s", pid, prob.Name)
+			os.MkdirAll(dirName, 0755)
+			inPath := dirName + string(os.PathSeparator) + pid + "_in.txt"
+			outPath := dirName + string(os.PathSeparator) + pid + "_out.txt"
 			os.WriteFile(inPath, []byte{}, 0644)
 			os.WriteFile(outPath, []byte{}, 0644)
 		}
@@ -183,8 +185,9 @@ var loadCmd = &cobra.Command{
 			fmt.Println("No valid language set in .cfr/config.json. Skipping file creation.")
 		} else {
 			created := 0
-			for id := range problems {
-				fname := id + ext
+			for id, prob := range problems {
+				dirName := fmt.Sprintf("%s. %s", id, prob.Name)
+				fname := dirName + string(os.PathSeparator) + id + ext
 				if _, err := os.Stat(fname); os.IsNotExist(err) {
 					f, err := os.Create(fname)
 					if err == nil {

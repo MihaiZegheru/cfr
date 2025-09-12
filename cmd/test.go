@@ -57,34 +57,53 @@ Use -c to run a custom test: input is read from <problem_ID>_in.txt and output i
 			   fmt.Println("No valid language set in .cfr/config.json. Cannot test.")
 			   return
 		   }
-		   sourceFile := problemID + ext
+		   // Find the problem directory (should match the format <problemID>. <name>)
+		   probDir := ""
+		   for id, entry := range state.Problems {
+			   if id == problemID {
+				   probDir = fmt.Sprintf("%s. %s", id, entry.Name)
+				   break
+			   }
+		   }
+		   if probDir == "" {
+			   fmt.Printf("Directory for problem %s not found.\n", problemID)
+			   return
+		   }
+		   sourceFile := probDir + string(os.PathSeparator) + problemID + ext
 		   // Compile the solution
 		   var execCmd string
 		   var execArgs []string
 		   var binName string
+		   var binPath string
 		   switch lang {
 		   case "cpp", "c++":
 			   binName = problemID + ".exe"
+			   binPath = probDir + string(os.PathSeparator) + binName
 			   execCmd = "g++"
-			   execArgs = []string{"-O2", "-std=c++17", sourceFile, "-o", binName}
+			   execArgs = []string{"-O2", "-std=c++17", sourceFile, "-o", binPath}
 		   case "c":
 			   binName = problemID + ".exe"
+			   binPath = probDir + string(os.PathSeparator) + binName
 			   execCmd = "gcc"
-			   execArgs = []string{"-O2", sourceFile, "-o", binName}
+			   execArgs = []string{"-O2", sourceFile, "-o", binPath}
 		   case "rust":
 			   binName = problemID + ".exe"
+			   binPath = probDir + string(os.PathSeparator) + binName
 			   execCmd = "rustc"
-			   execArgs = []string{sourceFile, "-o", binName}
+			   execArgs = []string{sourceFile, "-o", binPath}
 		   case "go":
 			   binName = problemID + ".exe"
+			   binPath = probDir + string(os.PathSeparator) + binName
 			   execCmd = "go"
-			   execArgs = []string{"build", "-o", binName, sourceFile}
+			   execArgs = []string{"build", "-o", binPath, sourceFile}
 		   case "java":
 			   binName = problemID + ".class"
+			   binPath = probDir + string(os.PathSeparator) + binName
 			   execCmd = "javac"
 			   execArgs = []string{sourceFile}
 		   case "python", "py":
 			   binName = ""
+			   binPath = ""
 		   default:
 			   fmt.Println("Language not supported for testing.")
 			   return
@@ -108,19 +127,23 @@ Use -c to run a custom test: input is read from <problem_ID>_in.txt and output i
 			   runCmd = "java"
 			   runArgs = []string{"-cp", ".", strings.TrimSuffix(sourceFile, ".java")}
 		   } else {
-			   runCmd = "./" + binName
+			   runCmd = "." + string(os.PathSeparator) + binName
 			   runArgs = []string{}
 		   }
 
 		   if customTest {
-			   // Use <problem_id>_in.txt as input, write output to <problem_id>_out.txt
-			   inPath := problemID + "_in.txt"
-			   outPath := problemID + "_out.txt"
+			   // Use <problem_id>_in.txt as input, write output to <problem_id>_out.txt in the problem directory
+			   inPath := probDir + string(os.PathSeparator) + problemID + "_in.txt"
+			   outPath := probDir + string(os.PathSeparator) + problemID + "_out.txt"
 			   if _, err := os.Stat(inPath); os.IsNotExist(err) {
 				   fmt.Printf("%s not found. Please run 'cfr load <ID>' first.\n", inPath)
 				   return
 			   }
-			   output, err := runWithInput(runCmd, runArgs, inPath)
+			   runCwd := ""
+			   if lang != "python" && lang != "py" && lang != "java" {
+				   runCwd = probDir
+			   }
+			   output, err := runWithInputCwd(runCmd, runArgs, inPath, runCwd)
 			   if err != nil {
 				   fmt.Printf("Execution failed: %v\n", err)
 				   return
@@ -137,10 +160,15 @@ Use -c to run a custom test: input is read from <problem_ID>_in.txt and output i
 		   // Run each test case
 		   fmt.Printf("Running %d sample test(s)...\n", len(prob.Tests))
 		   for i, tc := range prob.Tests {
-			   // Write input to temp file
-			   inFile := fmt.Sprintf(".cfr/tmp_input_%d.txt", i)
+			   // Write input to temp file in the problem directory
+			   inFile := probDir + string(os.PathSeparator) + fmt.Sprintf("tmp_input_%d.txt", i)
 			   os.WriteFile(inFile, []byte(tc.Input), 0644)
-			   output, err := runWithInput(runCmd, runArgs, inFile)
+			   // If running a compiled language, run from the problem directory
+			   runCwd := ""
+			   if lang != "python" && lang != "py" && lang != "java" {
+				   runCwd = probDir
+			   }
+			   output, err := runWithInputCwd(runCmd, runArgs, inFile, runCwd)
 			   // Clean up input file
 			   os.Remove(inFile)
 			   fmt.Printf("Test #%d:\n", i+1)
