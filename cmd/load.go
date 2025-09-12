@@ -17,27 +17,34 @@ var loadCmd = &cobra.Command{
     Use:   "load <ID>",
     Short: "Load a problem by ID",
     Args:  cobra.ExactArgs(1),
-    Run: func(cmd *cobra.Command, args []string) {
-        cfrDir := ".cfr"
-        if _, err := os.Stat(cfrDir); os.IsNotExist(err) {
-            fmt.Println("No .cfr directory found. Please run 'cfr init' first in this folder.")
-            return
-        }
-        id := args[0]
-        url := fmt.Sprintf("https://codeforces.com/contest/%s", id)
-        client := &http.Client{}
-        req, err := http.NewRequest("GET", url, nil)
-        if err != nil {
-            fmt.Printf("Failed to create request for problems: %v\n", err)
-            return
-        }
-        req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
-        resp, err := client.Do(req)
-        if err != nil {
-            fmt.Printf("Failed to fetch contest page: %v\n", err)
-            return
-        }
-        defer resp.Body.Close()
+	Run: func(cmd *cobra.Command, args []string) {
+		cfrDir := ".cfr"
+		if _, err := os.Stat(cfrDir); os.IsNotExist(err) {
+			fmt.Println("No .cfr directory found. Please run 'cfr init' first in this folder.")
+			return
+		}
+		id := args[0]
+		// Load current state if exists
+		var prevState internal.ProblemsState
+		prevState, _ = internal.LoadProblemsState()
+		if prevState.ContestID != "" && prevState.ContestID != id {
+			fmt.Printf("A different contest (%s) is already loaded. Please start a new workspace to load another contest.\n", prevState.ContestID)
+			return
+		}
+		url := fmt.Sprintf("https://codeforces.com/contest/%s", id)
+		client := &http.Client{}
+		req, err := http.NewRequest("GET", url, nil)
+		if err != nil {
+			fmt.Printf("Failed to create request for problems: %v\n", err)
+			return
+		}
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36")
+		resp, err := client.Do(req)
+		if err != nil {
+			fmt.Printf("Failed to fetch contest page: %v\n", err)
+			return
+		}
+		defer resp.Body.Close()
         doc, err := goquery.NewDocumentFromReader(resp.Body)
         if err != nil {
             fmt.Printf("Failed to parse contest HTML: %v\n", err)
@@ -151,49 +158,53 @@ var loadCmd = &cobra.Command{
 		}
 		fmt.Printf("Loaded %d problems for contest %s.\n", len(problems), id)
 
-		// Write empty in.txt and out.txt for each problem, and create directory per problem
-		configPath := ".cfr/config.json"
-		lang := ""
-		ext := ""
-		if f, err := os.Open(configPath); err == nil {
-			defer f.Close()
-			var cfg struct{ Language string `json:"language"` }
-			dec := json.NewDecoder(f)
-			if err := dec.Decode(&cfg); err == nil {
-				lang = strings.ToLower(cfg.Language)
+		// Only create files/folders if this is the first load (not a reload)
+		if prevState.ContestID == "" {
+			configPath := ".cfr/config.json"
+			lang := ""
+			ext := ""
+			if f, err := os.Open(configPath); err == nil {
+				defer f.Close()
+				var cfg struct{ Language string `json:"language"` }
+				dec := json.NewDecoder(f)
+				if err := dec.Decode(&cfg); err == nil {
+					lang = strings.ToLower(cfg.Language)
+				}
 			}
-		}
-		ext = map[string]string{
-			"c": ".c",
-			"cpp": ".cpp",
-			"c++": ".cpp",
-			"rust": ".rs",
-			"python": ".py",
-			"py": ".py",
-			"go": ".go",
-			"java": ".java",
-		}[lang]
-		for pid, prob := range problems {
-			dirName := fmt.Sprintf("%s. %s", pid, prob.Name)
-			os.MkdirAll(dirName, 0755)
-			inPath := dirName + string(os.PathSeparator) + "in.txt"
-			outPath := dirName + string(os.PathSeparator) + "out.txt"
-			os.WriteFile(inPath, []byte{}, 0644)
-			os.WriteFile(outPath, []byte{}, 0644)
-			if ext != "" {
-				srcPath := dirName + string(os.PathSeparator) + "main" + ext
-				if _, err := os.Stat(srcPath); os.IsNotExist(err) {
-					f, err := os.Create(srcPath)
-					if err == nil {
-						f.Close()
+			ext = map[string]string{
+				"c": ".c",
+				"cpp": ".cpp",
+				"c++": ".cpp",
+				"rust": ".rs",
+				"python": ".py",
+				"py": ".py",
+				"go": ".go",
+				"java": ".java",
+			}[lang]
+			for pid, prob := range problems {
+				dirName := fmt.Sprintf("%s. %s", pid, prob.Name)
+				os.MkdirAll(dirName, 0755)
+				inPath := dirName + string(os.PathSeparator) + "in.txt"
+				outPath := dirName + string(os.PathSeparator) + "out.txt"
+				os.WriteFile(inPath, []byte{}, 0644)
+				os.WriteFile(outPath, []byte{}, 0644)
+				if ext != "" {
+					srcPath := dirName + string(os.PathSeparator) + "main" + ext
+					if _, err := os.Stat(srcPath); os.IsNotExist(err) {
+						f, err := os.Create(srcPath)
+						if err == nil {
+							f.Close()
+						}
 					}
 				}
 			}
-		}
-		if ext == "" {
-			fmt.Println("No valid language set in .cfr/config.json. Skipping file creation.")
+			if ext == "" {
+				fmt.Println("No valid language set in .cfr/config.json. Skipping file creation.")
+			} else {
+				fmt.Printf("Created source and IO files for problems.\n")
+			}
 		} else {
-			fmt.Printf("Created source and IO files for problems.\n")
+			fmt.Println("Only sample tests were updated. No files or folders were changed.")
 		}
 		fmt.Println("Done.")
 	},
