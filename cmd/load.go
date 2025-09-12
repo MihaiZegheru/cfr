@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"regexp"
+	"html"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/MihaiZegheru/cfr/internal"
@@ -17,13 +19,23 @@ var loadCmd = &cobra.Command{
 	Short: "Load a problem by ID",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		// Check for .cfr directory
-		if _, err := os.Stat(".cfr"); os.IsNotExist(err) {
+		cfrDir := ".cfr"
+		if _, err := os.Stat(cfrDir); os.IsNotExist(err) {
 			fmt.Println("No .cfr directory found. Please run 'cfr init' first in this folder.")
 			return
 		}
 		id := args[0]
-		fmt.Printf("Loaded contest ID: %s\n", id)
+		problemsPath := cfrDir + string(os.PathSeparator) + "problems.json"
+		if f, err := os.Open(problemsPath); err == nil {
+			defer f.Close()
+			var state internal.ProblemsState
+			dec := json.NewDecoder(f)
+			if err := dec.Decode(&state); err == nil && state.ContestID != "" {
+				fmt.Printf("A contest (%s) is already loaded. Skipping.\n", state.ContestID)
+				return
+			}
+		}
+		fmt.Printf("Loading contest %s from Codeforces...\n", id)
 
 		// Fetch and save problem IDs
 		url := fmt.Sprintf("https://codeforces.com/contest/%s", id)
@@ -72,32 +84,45 @@ var loadCmd = &cobra.Command{
 						if err == nil {
 							var inputs, outputs []string
 							doc2.Find("div.sample-test div.input pre").Each(func(i int, s *goquery.Selection) {
-								input := ""
-								s.Contents().Each(func(_ int, node *goquery.Selection) {
-									if goquery.NodeName(node) == "br" {
-										input += "\n"
-									} else {
-										input += node.Text()
+								// If there are <div>s, join their text with \n
+								divs := s.Find("div")
+								if divs.Length() > 0 {
+									var lines []string
+									divs.Each(func(_ int, div *goquery.Selection) {
+										lines = append(lines, strings.TrimRight(div.Text(), "\r\n "))
+									})
+									inputs = append(inputs, strings.Join(lines, "\n"))
+								} else {
+									htmlStr, err := s.Html()
+									if err != nil {
+										inputs = append(inputs, strings.TrimSpace(s.Text()))
+										return
 									}
-								})
-								if input == "" {
-									input = s.Text()
+									// Replace <br> and <br/> with \n
+									htmlStr = strings.ReplaceAll(htmlStr, "<br>", "\n")
+									htmlStr = strings.ReplaceAll(htmlStr, "<br/>", "\n")
+									htmlStr = strings.ReplaceAll(htmlStr, "<br />", "\n")
+									// Remove all other tags
+									re := regexp.MustCompile(`<[^>]+>`)
+									htmlStr = re.ReplaceAllString(htmlStr, "")
+									// Unescape HTML entities
+									htmlStr = html.UnescapeString(htmlStr)
+									inputs = append(inputs, strings.TrimSpace(htmlStr))
 								}
-								inputs = append(inputs, strings.TrimSpace(input))
 							})
 							doc2.Find("div.sample-test div.output pre").Each(func(i int, s *goquery.Selection) {
-								output := ""
-								s.Contents().Each(func(_ int, node *goquery.Selection) {
-									if goquery.NodeName(node) == "br" {
-										output += "\n"
-									} else {
-										output += node.Text()
-									}
-								})
-								if output == "" {
-									output = s.Text()
+								htmlStr, err := s.Html()
+								if err != nil {
+									outputs = append(outputs, strings.TrimSpace(s.Text()))
+									return
 								}
-								outputs = append(outputs, strings.TrimSpace(output))
+								htmlStr = strings.ReplaceAll(htmlStr, "<br>", "\n")
+								htmlStr = strings.ReplaceAll(htmlStr, "<br/>", "\n")
+								htmlStr = strings.ReplaceAll(htmlStr, "<br />", "\n")
+								re := regexp.MustCompile(`<[^>]+>`)
+								htmlStr = re.ReplaceAllString(htmlStr, "")
+								htmlStr = html.UnescapeString(htmlStr)
+								outputs = append(outputs, strings.TrimSpace(htmlStr))
 							})
 							for i := 0; i < len(inputs) && i < len(outputs); i++ {
 								tests = append(tests, internal.TestCase{Input: inputs[i], Output: outputs[i]})
@@ -122,11 +147,7 @@ var loadCmd = &cobra.Command{
 			fmt.Printf("Failed to save problems state: %v\n", err)
 			return
 		}
-		fmt.Println("Saved problems:")
-		for k, v := range problems {
-			fmt.Printf("%s: %s (%d tests)\n", k, v.URL, len(v.Tests))
-		}
-
+		fmt.Printf("Loaded %d problems for contest %s.\n", len(problems), id)
 		// Read config for language
 		configPath := ".cfr/config.json"
 		lang := ""
@@ -139,31 +160,34 @@ var loadCmd = &cobra.Command{
 			}
 		}
 		ext := map[string]string{
-			"c":      ".c",
-			"cpp":    ".cpp",
-			"c++":    ".cpp",
-			"rust":   ".rs",
+			"c": ".c",
+			"cpp": ".cpp",
+			"c++": ".cpp",
+			"rust": ".rs",
 			"python": ".py",
-			"py":     ".py",
-			"go":     ".go",
-			"java":   ".java",
+			"py": ".py",
+			"go": ".go",
+			"java": ".java",
 		}[lang]
 		if ext == "" {
 			fmt.Println("No valid language set in .cfr/config.json. Skipping file creation.")
 		} else {
+			created := 0
 			for id := range problems {
 				fname := id + ext
 				if _, err := os.Stat(fname); os.IsNotExist(err) {
 					f, err := os.Create(fname)
-					if err != nil {
-						fmt.Printf("Failed to create %s: %v\n", fname, err)
-					} else {
+					if err == nil {
 						f.Close()
-						fmt.Printf("Created %s\n", fname)
+						created++
 					}
 				}
 			}
+			if created > 0 {
+				fmt.Printf("Created %d source file(s) for problems.\n", created)
+			}
 		}
+		fmt.Println("Done.")
 	},
 }
 

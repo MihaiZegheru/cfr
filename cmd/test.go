@@ -124,18 +124,30 @@ var testCmd = &cobra.Command{
 			       fmt.Printf("  Execution failed: %v\n", err)
 			       continue
 		       }
-		       // Trim output for comparison
-		       userOut := strings.TrimSpace(output)
-		       expected := strings.TrimSpace(tc.Output)
-		       if userOut == expected {
-			       fmt.Println("  OK")
-		       } else {
-			       fmt.Println("  Wrong Answer")
-			       fmt.Println("  Your output:")
-			       fmt.Println(userOut)
-			       fmt.Println("  Expected output:")
-			       fmt.Println(expected)
-		       }
+			   // Normalize output for comparison: trim trailing spaces per line and ignore extra blank lines at end
+			   normalize := func(s string) string {
+				   lines := strings.Split(s, "\n")
+				   var cleaned []string
+				   for _, line := range lines {
+					   cleaned = append(cleaned, strings.TrimRight(line, " \t\r"))
+				   }
+				   // Remove trailing empty lines
+				   for len(cleaned) > 0 && cleaned[len(cleaned)-1] == "" {
+					   cleaned = cleaned[:len(cleaned)-1]
+				   }
+				   return strings.Join(cleaned, "\n")
+			   }
+			   userOut := normalize(output)
+			   expected := normalize(tc.Output)
+			   if userOut == expected {
+				   fmt.Println("  OK")
+			   } else {
+				   fmt.Println("  Wrong Answer")
+				   fmt.Println("  Your output:")
+				   fmt.Println(userOut)
+				   fmt.Println("  Expected output:")
+				   fmt.Println(expected)
+			   }
 	       }
        },
 }
