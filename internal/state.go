@@ -18,9 +18,19 @@ func getStatePath() string {
 	return stateFile
 }
 
+type TestCase struct {
+	Input  string `json:"input"`
+	Output string `json:"output"`
+}
+
+type ProblemEntry struct {
+	URL   string     `json:"url"`
+	Tests []TestCase `json:"tests"`
+}
+
 type ProblemsState struct {
-	ContestID string            `json:"contest_id"`
-	Problems  map[string]string `json:"problems"`
+	ContestID string                  `json:"contest_id"`
+	Problems  map[string]ProblemEntry `json:"problems"`
 }
 
 func SaveProblemsState(state ProblemsState) error {
