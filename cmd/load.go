@@ -148,6 +148,14 @@ var loadCmd = &cobra.Command{
 			return
 		}
 		fmt.Printf("Loaded %d problems for contest %s.\n", len(problems), id)
+
+		// Write empty in.txt and out.txt for each problem
+		for pid := range problems {
+			inPath := pid + "_in.txt"
+			outPath := pid + "_out.txt"
+			os.WriteFile(inPath, []byte{}, 0644)
+			os.WriteFile(outPath, []byte{}, 0644)
+		}
 		// Read config for language
 		configPath := ".cfr/config.json"
 		lang := ""
