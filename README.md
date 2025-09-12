@@ -5,7 +5,7 @@ CFR is a fast, user-friendly CLI tool for competitive programmers who use Codefo
 ## Features
 - **Contest Loader:** Download all problems and sample tests for a contest in one command.
 - **Organized Workspace:** Each problem gets its own folder with generic file names (`main.cpp`, `in.txt`, `out.txt`).
-- **Language Support:** Works with C++, C, Rust, Go, Python, and Java (configurable per problem).
+- **Language Support:** Works with C++, C, Go, and Python (configurable per problem).
 - **Per-Problem Language:** Set a different language for each problem in `.cfr/config.json` or with a CLI command.
 - **Sample & Custom Testing:** Run all sample tests or your own custom test cases.
 - **Persistent State:** Keeps track of loaded contests and problems in `.cfr/problems.json`.
@@ -29,18 +29,27 @@ cfr init
 ```
 
 ### 3. Set Your Language(s)
-Edit `.cfr/config.json` to set the default language and/or per-problem languages:
+
+Edit `.cfr/config.json` to set the default language, per-problem languages, and the compiler/interpreter for each language:
 ```json
 {
   "default_language": "cpp",
   "languages": {
     "A": "cpp",
     "B": "python",
-    "C": "java"
+    "C": "go"
+  },
+  "executables": {
+    "cpp": "g++",
+    "c": "gcc",
+    "go": "go",
+    "python": "python"
   }
 }
 ```
-Supported: `cpp`, `c`, `rust`, `go`, `python`, `java`
+Supported: `cpp`, `c`, `go`, `python`
+
+You can change the value in `executables` to match your system (e.g., use `python3` instead of `python` if needed).
 
 Or use the CLI to set a language for a problem and create the right file:
 ```sh
@@ -94,7 +103,7 @@ YourContestFolder/
 │   ├── out.txt
 │   └── versions/
 │       ├── main.py
-│       └── main.java
+│       └── main.py
 ├── B. .../
 │   ├── main.py
 │   ├── in.txt
@@ -110,7 +119,7 @@ YourContestFolder/
 - You can re-run `cfr load <ID>` to update problems if needed.
 - Only one contest can be loaded at a time per workspace.
 - All state is stored in `.cfr/problems.json`.
-- For C++/C/Rust/Go, the binary is built and run in the problem directory.
+- For C++/C/Go, the binary is built and run in the problem directory.
 - Use `cfr set-lang <PROBLEM_ID> <language>` to switch languages and manage source files safely.
 - When switching languages, your previous file is saved in `versions/` and restored if you switch back.
 
